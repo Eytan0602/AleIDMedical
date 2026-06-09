@@ -725,31 +725,47 @@ function renderDashboard(){
   if(!html) html='<div style="font-size:13px;color:var(--text-muted)">Sin datos médicos aún — presiona "Editar".</div>';
   document.getElementById('dash-medical-body').innerHTML=html;
 }
-
 function genQR(){
   if(!PROFILE) return;
-  const payload=JSON.stringify({
-    nombre:(PROFILE.fname||'')+' '+(PROFILE.lname||''),
-    nacimiento:PROFILE.dob||'',sangre:PROFILE.blood_type||'',
-    alergias:PROFILE.allergies||'Ninguna',donante:PROFILE.donor||'No',
-    emergencia:PROFILE.emergency||'—',telefono:PROFILE.phone||'',
-    condiciones:PROFILE.conditions||'',ts:new Date().toISOString()
-  });
+  
+  // Solo datos críticos para emergencias
+  const payload = [
+    (PROFILE.fname||'') + ' ' + (PROFILE.lname||''),
+    'Sangre:' + (PROFILE.blood_type||'?'),
+    'Tel:' + (PROFILE.phone||''),
+    'Urg:' + (PROFILE.emergency||'-'),
+    'Alerg:' + (PROFILE.allergies||'Ninguna').slice(0,50),
+    'Cond:' + (PROFILE.conditions||'').slice(0,60),
+    'Med:' + (PROFILE.medications||'').slice(0,60),
+  ].join('|');
+
   document.getElementById('qr-name').textContent=(PROFILE.fname||'')+' '+(PROFILE.lname||'');
   document.getElementById('qr-sub').textContent=(PROFILE.blood_type?'Sangre: '+PROFILE.blood_type:'')+' · '+(PROFILE.phone||'');
   document.getElementById('qr-stamp').textContent='Generado: '+new Date().toLocaleString('es-PE');
+
   const c=document.getElementById('qr-canvas');
   const ctx=c.getContext('2d');
   ctx.clearRect(0,0,200,200);
   const tmp=document.createElement('div');
   tmp.style.cssText='position:absolute;left:-9999px;top:-9999px';
   document.body.appendChild(tmp);
-  new QRCode(tmp,{text:payload,width:200,height:200,correctLevel:QRCode.CorrectLevel.M});
-  setTimeout(()=>{
-    const el=tmp.querySelector('img')||tmp.querySelector('canvas');
-    if(el){if(el.tagName==='IMG'){const i=new Image();i.onload=()=>ctx.drawImage(i,0,0,200,200);i.src=el.src;}else ctx.drawImage(el,0,0,200,200);}
+  try {
+    new QRCode(tmp,{text:payload,width:200,height:200,correctLevel:QRCode.CorrectLevel.L});
+    setTimeout(()=>{
+      const el=tmp.querySelector('img')||tmp.querySelector('canvas');
+      if(el){if(el.tagName==='IMG'){const i=new Image();i.onload=()=>ctx.drawImage(i,0,0,200,200);i.src=el.src;}else ctx.drawImage(el,0,0,200,200);}
+      document.body.removeChild(tmp);
+    },220);
+  } catch(e) {
     document.body.removeChild(tmp);
-  },220);
+    ctx.fillStyle='rgba(255,255,255,0.1)';
+    ctx.fillRect(0,0,200,200);
+    ctx.fillStyle='#fff';
+    ctx.font='12px Inter';
+    ctx.textAlign='center';
+    ctx.fillText('Datos muy largos,',100,90);
+    ctx.fillText('reduce el texto',100,110);
+  }
 }
 function regenQR(){ genQR(); toast('QR regenerado con nueva marca de tiempo'); }
 
